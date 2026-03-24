@@ -43,20 +43,20 @@ def train_bpe(
     else:
         freq_table = pretokenization(input_path, 0, None, special_tokens)
     
-    # print(freq_table)
+    # build pair_count and pair_set
+    merges: list[tuple[bytes, bytes]] = []
+    pair_count: Counter[tuple[bytes, bytes]] = Counter()
+    pretoken_pair_set: dict[tuple[bytes, ...], set[tuple[bytes, bytes]]] = {}
+
+    for pretoken_tuple in freq_table:
+        pretoken_pair_set[pretoken_tuple] = get_pair_set(pretoken_tuple)
+        if len(pretoken_tuple) <= 1:
+            continue
+        for i in range(len(pretoken_tuple)-1):
+            pair_count[pretoken_tuple[i:i+2]] += freq_table[pretoken_tuple]
     
     # tokenize
-    merges: list[tuple[bytes, bytes]] = []
-    pair_count: dict[tuple[bytes, bytes], int] = defaultdict(int)
     while len(vocab) < vocab_size:
-        pair_count: dict[tuple[bytes, bytes], int] = defaultdict(int)
-        for pretoken_tuple in freq_table:
-            if len(pretoken_tuple) <= 1:
-                continue
-            for i in range(len(pretoken_tuple)-1):
-                pair_count[pretoken_tuple[i:i+2]] += freq_table[pretoken_tuple]
-        
-        # print(pair_count)
         
         if not pair_count:
             raise ValueError("desired vocab_size is infeasible")
@@ -65,14 +65,34 @@ def train_bpe(
         max_pair = max(pair_count, key=lambda k: (pair_count[k], k))
         # iterate and merge
         new_freq_table: dict[tuple[bytes, ...], int] = defaultdict(int)
-        for pretoken_tuple in freq_table:
-            new_freq_table[merge(pretoken_tuple, max_pair)] = freq_table[pretoken_tuple]
+        for pretoken_tuple, freq in freq_table.items():
+            if max_pair not in pretoken_pair_set[pretoken_tuple]:
+                new_freq_table[pretoken_tuple] = freq
+                continue
+            merged_pretoken_tuple = merge(pretoken_tuple, max_pair)
+            for i in range(len(merged_pretoken_tuple)-1):
+                pair_count[merged_pretoken_tuple[i:i+2]] += freq
+            for i in range(len(pretoken_tuple)-1):
+                old_pair = pretoken_tuple[i:i+2]
+                pair_count[old_pair] -= freq
+                assert pair_count[old_pair] >= 0
+                if pair_count[old_pair] == 0:
+                    del pair_count[old_pair]
+            new_freq_table[merged_pretoken_tuple] = freq_table[pretoken_tuple]
+            pretoken_pair_set[merged_pretoken_tuple] = get_pair_set(merged_pretoken_tuple)
         
         freq_table = new_freq_table
         merges.append(max_pair)
         vocab[len(vocab)] = max_pair[0] + max_pair[1]
     
     return vocab, merges
+
+
+def get_pair_set(pretoken_tuple: tuple[bytes, ...]) -> set[tuple[bytes, bytes]]:
+    pair_set = set()
+    for i in range(len(pretoken_tuple)-1):
+        pair_set.add(pretoken_tuple[i:i+2])
+    return pair_set
 
 
 def worker(args):
@@ -107,25 +127,24 @@ def pretokenization(
         for s in chunk_split:
             for match in re.finditer(PAT, s):
                 pretoken = match.group().encode("utf-8")
-                freq_table[tuple(pretoken[i: i+1] for i in range(len(pretoken)))] += 1
+                freq_table[tuple(bytes([b]) for b in pretoken)] += 1
     
     return freq_table
-    
-
-
 
 
 def merge(bytes_tuple: tuple[bytes, ...], merge_pair: tuple[bytes, bytes]) -> tuple[bytes, ...]:
     """
     Returns the bytes_tuple after merging all neighbour merge_pairs.
     """
-    if len(bytes_tuple) <= 1:
+    n = len(bytes_tuple)
+    if n <= 1:
         return bytes_tuple # no merge can be performed
     merged_bytes: list[bytes] = []
+    merged_pair = merge_pair[0] + merge_pair[1]
     i = 0
-    while i < len(bytes_tuple):
-        if bytes_tuple[i:i+2] == merge_pair:
-            merged_bytes.append(merge_pair[0] + merge_pair[1])
+    while i < n:
+        if i < n-1 and bytes_tuple[i] == merge_pair[0] and bytes_tuple[i+1] == merge_pair[1]:
+            merged_bytes.append(merged_pair)
             i += 2
         else:
             merged_bytes.append(bytes_tuple[i])
@@ -187,16 +206,3 @@ def bpe_example(
         vocab[len(vocab)] = max_pair[0] + max_pair[1]
     
     return vocab, merges
-
-
-
-
-
-
-    
-
-
-
-    
-
-
