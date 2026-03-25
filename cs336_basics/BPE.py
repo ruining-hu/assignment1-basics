@@ -7,6 +7,7 @@ from multiprocessing import Pool
 
 
 PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+# PAT = r"\S+"
 
 
 def train_bpe(
@@ -25,10 +26,9 @@ def train_bpe(
         vocab[len(vocab)] = special_token.encode("utf-8")
     
     if vocab_size == len(vocab):
-        return {}, vocab
+        return vocab, []
     
     # pretokenization
-    freq_table: dict[tuple[bytes, ...], int] = {}
 
     if not split_special_token:
         split_special_token = special_tokens[0]
@@ -41,57 +41,50 @@ def train_bpe(
         assert results
         freq_table: Counter[tuple[bytes, ...]] = Counter()
         pair_count: Counter[tuple[bytes, bytes]] = Counter()
-        pretoken_pair_set: dict[tuple[bytes, ...], set[tuple[bytes, bytes]]] = {}
-        freq_table = sum([result[0] for result in results], start=Counter())
-        pair_count = sum([result[1] for result in results], start=Counter())
+        pair_to_pretoken: dict[tuple[bytes, bytes], set[tuple[bytes, ...]]] = defaultdict(set)
         for result in results:
             freq_table += result[0]
             pair_count += result[1]
-            pretoken_pair_set.update(result[2])
+            for pair, pretoken_set in result[2].items():
+                pair_to_pretoken[pair] = pair_to_pretoken[pair].union(pretoken_set)
+
 
     else:
-        freq_table, pair_count, pretoken_pair_set = pretokenization(input_path, 0, None, special_tokens)
+        freq_table, pair_count, pair_to_pretoken = pretokenization(input_path, 0, None, special_tokens)
 
     merges: list[tuple[bytes, bytes]] = []
     
     # tokenize
     while len(vocab) < vocab_size:
+
+        # print(pair_count)
         
         if not pair_count:
             raise ValueError("desired vocab_size is infeasible")
         
         # get the pair to merge at this step
         max_pair = max(pair_count, key=lambda k: (pair_count[k], k))
-        # iterate and merge
-        new_freq_table: Counter[tuple[bytes, ...]] = Counter()
-        for pretoken_tuple, freq in freq_table.items():
-            if max_pair not in pretoken_pair_set[pretoken_tuple]:
-                new_freq_table[pretoken_tuple] = freq
-                continue
+        # iterate and merge, maintain freq_table, pair_count, and pair_to_pretoken
+        for pretoken_tuple in pair_to_pretoken[max_pair].copy():
             merged_pretoken_tuple = merge(pretoken_tuple, max_pair)
-            for i in range(len(merged_pretoken_tuple)-1):
-                pair_count[merged_pretoken_tuple[i:i+2]] += freq
+            # freq_table update
+            freq = freq_table.pop(pretoken_tuple)
+            freq_table[merged_pretoken_tuple] = freq
+            # delete old pair_count and pair_to_pretoken
             for i in range(len(pretoken_tuple)-1):
-                old_pair = pretoken_tuple[i:i+2]
-                pair_count[old_pair] -= freq
-                assert pair_count[old_pair] >= 0
-                if pair_count[old_pair] == 0:
-                    del pair_count[old_pair]
-            new_freq_table[merged_pretoken_tuple] = freq_table[pretoken_tuple]
-            pretoken_pair_set[merged_pretoken_tuple] = get_pair_set(merged_pretoken_tuple)
-        
-        freq_table = new_freq_table
+                pair = (pretoken_tuple[i], pretoken_tuple[i+1])
+                pair_count[pair] -= freq
+                assert pair_count[pair] >= 0
+                pair_to_pretoken[pair].discard(pretoken_tuple)
+            # add new merged_pretoken to pair_count and pair_to_pretoken
+            for i in range(len(merged_pretoken_tuple)-1):
+                pair = (merged_pretoken_tuple[i], merged_pretoken_tuple[i+1])
+                pair_count[pair] += freq
+                pair_to_pretoken[pair].add(merged_pretoken_tuple)
         merges.append(max_pair)
         vocab[len(vocab)] = max_pair[0] + max_pair[1]
     
     return vocab, merges
-
-
-def get_pair_set(pretoken_tuple: tuple[bytes, ...]) -> set[tuple[bytes, bytes]]:
-    pair_set = set()
-    for i in range(len(pretoken_tuple)-1):
-        pair_set.add(pretoken_tuple[i:i+2])
-    return pair_set
 
 
 def worker(args):
@@ -103,13 +96,13 @@ def pretokenization(
     start: int,
     end: int | None,
     special_tokens: list[str]
-) -> tuple[Counter[tuple[bytes, ...]], Counter[tuple[bytes, bytes]], dict[tuple[bytes, ...], set[tuple[bytes, bytes]]]]:
+) -> tuple[Counter[tuple[bytes, ...]], Counter[tuple[bytes, bytes]], dict[tuple[bytes, bytes], set[tuple[bytes, ...]]]]:
     """
-    Compute the freq_table, pair_count, pretoken_pair_set on a specified chunk of the input file. Can be used in parallel.
+    Compute the freq_table, pair_count, pair_to_pretoken on a specified chunk of the input file. Can be used in parallel.
     """
     freq_table: Counter[tuple[bytes, ...]] = Counter()
     pair_count: Counter[tuple[bytes, bytes]] = Counter()
-    pretoken_pair_set: dict[tuple[bytes, ...], set[tuple[bytes, bytes]]] = {}
+    pair_to_pretoken: dict[tuple[bytes, bytes], set[tuple[bytes, ...]]] = defaultdict(set)
     with open(input_path, "rb") as f:
         f.seek(0, os.SEEK_END)
         length = f.tell()
@@ -131,11 +124,12 @@ def pretokenization(
                 freq_table[tuple(bytes([b]) for b in pretoken)] += 1
         
         for pretoken_tuple, freq in freq_table.items():
-            pretoken_pair_set[pretoken_tuple] = get_pair_set(pretoken_tuple)
             for i in range(len(pretoken_tuple)-1):
-                pair_count[pretoken_tuple[i:i+2]] += freq
+                pair = (pretoken_tuple[i], pretoken_tuple[i+1])
+                pair_count[pair] += freq
+                pair_to_pretoken[pair].add(pretoken_tuple)
     
-    return freq_table, pair_count, pretoken_pair_set
+    return freq_table, pair_count, pair_to_pretoken
 
 
 def merge(bytes_tuple: tuple[bytes, ...], merge_pair: tuple[bytes, bytes]) -> tuple[bytes, ...]:
@@ -174,7 +168,7 @@ def bpe_example(
         vocab[len(vocab)] = special_token.encode("utf-8")
     
     if vocab_size == len(vocab):
-        return {}, vocab
+        return vocab, []
     
     # split on special tokens
     str_split: list[str] = re.split("|".join(re.escape(t) for t in special_tokens), input_str)
@@ -195,7 +189,7 @@ def bpe_example(
             if len(pretoken_tuple) <= 1:
                 continue
             for i in range(len(pretoken_tuple)-1):
-                pair_count[pretoken_tuple[i:i+2]] += freq_table[pretoken_tuple]
+                pair_count[(pretoken_tuple[i], pretoken_tuple[i+1])] += freq_table[pretoken_tuple]
         
         if not pair_count:
             raise ValueError("desired vocab_size is infeasible")
