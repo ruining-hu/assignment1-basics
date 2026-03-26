@@ -1,7 +1,6 @@
 import regex as re
 from collections import defaultdict, Counter
 from cs336_basics.pretokenization_example import find_chunk_boundaries
-from typing import BinaryIO
 import os
 from multiprocessing import Pool
 
@@ -151,58 +150,3 @@ def merge(bytes_tuple: tuple[bytes, ...], merge_pair: tuple[bytes, bytes]) -> tu
             i += 1
     
     return tuple(merged_bytes)
-
-
-
-
-def bpe_example(
-    input_str: str,
-    vocab_size: int,
-    special_tokens: list[str]
-) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
-    assert vocab_size >= 256 + len(special_tokens)
-    
-    # initialize the vocabulary
-    vocab: dict[int, bytes] = {i: bytes([i]) for i in range(256)}
-    for special_token in special_tokens:
-        vocab[len(vocab)] = special_token.encode("utf-8")
-    
-    if vocab_size == len(vocab):
-        return vocab, []
-    
-    # split on special tokens
-    str_split: list[str] = re.split("|".join(re.escape(t) for t in special_tokens), input_str)
-
-    # construct frequency table
-    PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
-    freq_table: dict[tuple[bytes, ...], int] = defaultdict(int)
-    for s in str_split:
-        for match in re.finditer(PAT, s):
-            pretoken: bytes = match.group().encode("utf-8")
-            freq_table[tuple(pretoken[i: i+1] for i in range(len(pretoken)))] += 1
-    
-    # tokenize
-    merges: list[tuple[bytes, bytes]] = []
-    while len(vocab) < vocab_size:
-        pair_count: dict[tuple[bytes, bytes], int] = defaultdict(int)
-        for pretoken_tuple in freq_table:
-            if len(pretoken_tuple) <= 1:
-                continue
-            for i in range(len(pretoken_tuple)-1):
-                pair_count[(pretoken_tuple[i], pretoken_tuple[i+1])] += freq_table[pretoken_tuple]
-        
-        if not pair_count:
-            raise ValueError("desired vocab_size is infeasible")
-        
-        # get the pair to merge at this step
-        max_pair = max(pair_count, key=lambda k: (pair_count[k], k))
-        # iterate and merge
-        new_freq_table: dict[tuple[bytes, ...], int] = defaultdict(int)
-        for pretoken_tuple in freq_table:
-            new_freq_table[merge(pretoken_tuple, max_pair)] = freq_table[pretoken_tuple]
-        
-        freq_table = new_freq_table
-        merges.append(max_pair)
-        vocab[len(vocab)] = max_pair[0] + max_pair[1]
-    
-    return vocab, merges
