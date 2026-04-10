@@ -1,4 +1,5 @@
 from typing import Any
+from collections.abc import Callable, Iterable
 
 import torch
 import torch.nn as nn
@@ -82,7 +83,7 @@ class RotaryPositionalEmbedding(nn.Module):
 
 def softmax(x: torch.Tensor, dim: int) -> torch.Tensor:
     assert dim < len(x.shape)
-    maxes = x.max(dim=dim, keepdim=True).values
+    maxes = x.amax(dim=dim, keepdim=True)
     exp_x = torch.exp(x - maxes)
     return exp_x / exp_x.sum(dim=dim, keepdim=True)
 
@@ -208,4 +209,71 @@ class TransformerLM(nn.Module):
         embedded_seq = self.rms_norm_final(embedded_seq)
         return self.lm_head(embedded_seq)
         
+
+def cross_entropy(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    assert logits.shape[:-1] == targets.shape
+    maxes = logits.amax(dim=-1, keepdim=True)
+    logits = logits - maxes
+    target_logits = logits.gather(dim=-1, index=targets.unsqueeze(-1)).squeeze(-1)
+    losses = torch.log(torch.exp(logits).sum(dim=-1)) - target_logits
+    return losses.mean()
+
+
+class SGD(torch.optim.Optimizer):
+    def __init__(self, params, lr=1e-3):
+        if lr < 0:
+            raise ValueError(f"Invalid learning rate: {lr}")
+        defaults = {"lr": lr}
+        super().__init__(params, defaults)
+
+    def step(self, closure: Callable | None = None):
+        loss = None if closure is None else closure()
+        for group in self.param_groups:
+            lr = group["lr"]  # Get the learning rate.
+            for p in group["params"]:
+                if p.grad is None:
+                    continue
+
+                state = self.state[p]  # Get state associated with p.
+                t = state.get("t", 0)  # Get iteration number from the state, or 0.
+                grad = p.grad.data  # Get the gradient of loss with respect to p.
+                p.data -= lr / math.sqrt(t + 1) * grad  # Update weight tensor in-place.
+                state["t"] = t + 1  # Increment iteration number.
+
+        return loss
+
+
+class AdamW(torch.optim.Optimizer):
+    def __init__(self, params, lr: float, betas: tuple[float, float], weight_decay: float = 0, eps: float = 1e-8) -> None:
+        defaults = {"lr": lr, "betas": betas, "weight_decay": weight_decay, "eps": eps}
+        super().__init__(params, defaults)
+    
+    def step(self, closure: Callable[[], float] | None = None):
+        loss = None if closure is None else closure()
+        for group in self.param_groups:
+            lr = group["lr"]
+            (beta1, beta2) = group["betas"]
+            weight_decay = group["weight_decay"]
+            eps = group["eps"]
+            for p in group["params"]:
+                if p.grad is None:
+                    continue
+
+                state = self.state[p]
+                t = state.get("t", 1)
+                m = state.get("m", torch.zeros_like(p))
+                v = state.get("v", torch.zeros_like(p))
+                grad = p.grad.data
+                m = beta1 * m + (1 - beta1) * grad
+                v = beta2 * v + (1 - beta2) * grad**2
+                alpha_t = lr * math.sqrt(1 - beta2 ** t) / (1 - beta1 ** t)
+                p.data *= (1 - lr * weight_decay)
+                p.data -= alpha_t * m / (torch.sqrt(v) + eps)
+                state["t"] = t + 1
+                state["m"] = m
+                state["v"] = v
+
+        return loss
+
+
 
