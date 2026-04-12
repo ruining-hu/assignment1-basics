@@ -2,11 +2,19 @@ import regex as re
 from collections import defaultdict, Counter
 from cs336_basics.pretokenization_example import find_chunk_boundaries
 import os
+import heapq
 from multiprocessing import Pool
 
 
 PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 # PAT = r"\S+"
+
+# used for bytes comparison in the heap
+class Reverse:
+    def __init__(self, val: tuple[bytes, bytes]):
+        self.val = val
+    def __lt__(self, other):
+        return self.val > other.val
 
 
 def train_bpe(
@@ -52,6 +60,12 @@ def train_bpe(
         freq_table, pair_count, pair_to_pretoken = pretokenization(input_path, 0, None, special_tokens)
 
     merges: list[tuple[bytes, bytes]] = []
+
+    # initialize heap
+    pair_count_heap = []
+    for k, v in pair_count.items():
+        heapq.heappush(pair_count_heap, (-v, Reverse(k)))
+
     
     # tokenize
     while len(vocab) < vocab_size:
@@ -62,8 +76,15 @@ def train_bpe(
             raise ValueError("desired vocab_size is infeasible")
         
         # get the pair to merge at this step
-        max_pair = max(pair_count, key=lambda k: (pair_count[k], k))
+        count, max_pair = heapq.heappop(pair_count_heap)
+        max_pair = max_pair.val
+        while pair_count[max_pair] != -count:
+            # stale data in heap
+            count, max_pair = heapq.heappop(pair_count_heap)
+            max_pair = max_pair.val
+        max_pair_merged = max_pair[0] + max_pair[1]
         # iterate and merge, maintain freq_table, pair_count, and pair_to_pretoken
+        pairs_to_update: set[tuple[bytes, bytes]] = set()
         for pretoken_tuple in pair_to_pretoken[max_pair].copy():
             merged_pretoken_tuple = merge(pretoken_tuple, max_pair)
             # freq_table update
@@ -72,16 +93,20 @@ def train_bpe(
             # delete old pair_count and pair_to_pretoken
             for i in range(len(pretoken_tuple)-1):
                 pair = (pretoken_tuple[i], pretoken_tuple[i+1])
+                pairs_to_update.add(pair)
                 pair_count[pair] -= freq
                 assert pair_count[pair] >= 0
                 pair_to_pretoken[pair].discard(pretoken_tuple)
             # add new merged_pretoken to pair_count and pair_to_pretoken
             for i in range(len(merged_pretoken_tuple)-1):
                 pair = (merged_pretoken_tuple[i], merged_pretoken_tuple[i+1])
+                pairs_to_update.add(pair)
                 pair_count[pair] += freq
                 pair_to_pretoken[pair].add(merged_pretoken_tuple)
         merges.append(max_pair)
-        vocab[len(vocab)] = max_pair[0] + max_pair[1]
+        for pair in pairs_to_update:
+            heapq.heappush(pair_count_heap, (-pair_count[pair], Reverse(pair)))
+        vocab[len(vocab)] = max_pair_merged
     
     return vocab, merges
 
