@@ -8,8 +8,6 @@ import numpy as np
 import math
 from einops import einsum, rearrange
 
-rng = np.random.default_rng()
-
 class Linear(nn.Module):
     def __init__(self, in_features: int, out_features: int, device: torch.device | None = None, dtype: torch.dtype | None = None) -> None:
         super().__init__()
@@ -201,7 +199,7 @@ class TransformerLM(nn.Module):
     ):
         super().__init__()
         self.embedding = Embedding(num_embeddings=vocab_size, embedding_dim=d_model, device=device, dtype=dtype)
-        self.transformer_blocks = [TransformerBlock(d_model=d_model, num_heads=num_heads, d_ff=d_ff, use_rope=use_rope, max_seq_length=context_length, theta=theta, device=device, dtype=dtype) for _ in range(num_layers)]
+        self.transformer_blocks = nn.ModuleList([TransformerBlock(d_model=d_model, num_heads=num_heads, d_ff=d_ff, use_rope=use_rope, max_seq_length=context_length, theta=theta, device=device, dtype=dtype) for _ in range(num_layers)])
         self.num_layers = num_layers
         self.rms_norm_final = RMSNorm(d_model=d_model, device=device, dtype=dtype)
         self.lm_head = Linear(d_model, vocab_size, device=device, dtype=dtype)
@@ -252,10 +250,11 @@ class AdamW(torch.optim.Optimizer):
         defaults = {"lr": lr, "betas": betas, "weight_decay": weight_decay, "eps": eps}
         super().__init__(params, defaults)
     
-    def step(self, closure: Callable[[], float] | None = None):
+    def step(self, closure: Callable[[], float] | None = None, lr: float | None = None):
         loss = None if closure is None else closure()
         for group in self.param_groups:
-            lr = group["lr"]
+            if not lr:
+                lr = group["lr"]
             (beta1, beta2) = group["betas"]
             weight_decay = group["weight_decay"]
             eps = group["eps"]
@@ -304,14 +303,14 @@ def gradient_clipping(params: Iterable[nn.Parameter], clip_norm: float) -> None:
                 param.grad.data = param.grad.data * scale_factor
 
 
-def data_loading(x: np.ndarray, batch_size: int, context_length: int, device: str):
+def data_loading(x: np.ndarray, batch_size: int, context_length: int, device: torch.device, rng: np.random.Generator = np.random.default_rng()):
     assert len(x.shape) == 1
     n = x.size
     assert n >= context_length + 1
     valid_start_indices = np.arange(n - context_length)
     start_indices_chosen = rng.choice(valid_start_indices, size=batch_size)
     result = x[start_indices_chosen[:, None] + np.arange(context_length+1)]
-    return (torch.Tensor(result[:, :-1], device=device), torch.Tensor(result[:, 1:], device=device))
+    return (torch.from_numpy(result[:, :-1].astype(np.int64)).to(device), torch.from_numpy(result[:, 1:].astype(np.int64)).to(device))
 
 
 def save_checkpoint(model: nn.Module, optimizer: torch.optim.Optimizer, iteration: int, out: str | os.PathLike | typing.BinaryIO | typing.IO[bytes]) -> None:
