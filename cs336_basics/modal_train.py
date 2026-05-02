@@ -42,6 +42,37 @@ def train_tokenizer(vocab_size: int = 32000):
     volume.commit()
 
 
+def tokenize_corpus(vocab_filepath: str, merges_filepath: str, special_tokens: list[str] = []):
+    from cs336_basics.tokenizer import Tokenizer
+    import urllib.request
+    from urllib.parse import urlparse
+    import pickle
+    import os
+    urls = [
+        "https://huggingface.co/datasets/roneneldan/TinyStories/resolve/main/TinyStoriesV2-GPT4-train.txt",
+        "https://huggingface.co/datasets/roneneldan/TinyStories/resolve/main/TinyStoriesV2-GPT4-valid.txt",
+        "https://huggingface.co/datasets/stanford-cs336/owt-sample/resolve/main/owt_train.txt.gz",
+        "https://huggingface.co/datasets/stanford-cs336/owt-sample/resolve/main/owt_valid.txt.gz"
+    ]
+    filenames = []
+    for url in urls:
+        url = "https://example.com/path/to/file.txt"
+        filename = os.path.basename(urlparse(url).path)
+        filenames.append(filename)
+
+        urllib.request.urlretrieve(url, f"/tmp/{filename}")
+    
+    tokenizer = Tokenizer.from_files(vocab_filepath=vocab_filepath, merges_filepath=merges_filepath, special_tokens=special_tokens)
+    for filename in filenames:
+        f = open(f"/tmp/{filename}", "r")
+        text = f.read()
+        f.close()
+        encoded_text = tokenizer.encode(text=text)
+            
+
+    
+
+
 @app.local_entrypoint()
 def main():
     train_tokenizer.remote(vocab_size=32000)

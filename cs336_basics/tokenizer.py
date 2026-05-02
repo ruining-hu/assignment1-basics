@@ -6,7 +6,7 @@ PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s
 
 
 class Tokenizer:
-    def __init__(self, vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], special_tokens: list[str] | None = None) -> None:
+    def __init__(self, vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], special_tokens: list[str] = []) -> None:
         self.vocab = vocab
         self.merges = merges
         self.special_tokens = special_tokens
@@ -16,7 +16,7 @@ class Tokenizer:
 
 
     @classmethod
-    def from_files(cls, vocab_filepath: str, merges_filepath: str, special_tokens: list[str] | None = None) -> Self:
+    def from_files(cls, vocab_filepath: str, merges_filepath: str, special_tokens: list[str] = []) -> Self:
         with open(vocab_filepath, "rb") as f:
             vocab: dict[int, bytes] = pickle.load(f)
         with open(merges_filepath, "rb") as f:
