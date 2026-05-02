@@ -2,43 +2,26 @@ from cs336_basics.building_blocks import *
 import torch
 import numpy as np
 import wandb
+from dataclasses import dataclass, asdict
 
-class TrainConfig():
-    def __init__(
-            self,
-            seed: int,
-            d_model: int,
-            d_ff: int,
-            n_layers: int,
-            n_heads: int,
-            context_length: int,
-            theta: float,
-            lr: float | tuple[float, float],
-            weight_decay: float,
-            beta: tuple[float, float],
-            grad_clip: float,
-            warmup_steps : int,
-            cosine_steps : int,
-            batch_size: int,
-            use_rope: bool,
-            vocab_size: int = 32000,
-    ) -> None:
-        self.seed = seed
-        self.d_model = d_model
-        self.d_ff = d_ff
-        self.n_layers = n_layers
-        self.n_heads = n_heads
-        self.context_length = context_length
-        self.theta = theta
-        self.lr = lr
-        self.weight_decay = weight_decay
-        self.beta = beta
-        self.grad_clip = grad_clip
-        self.warmup_steps = warmup_steps
-        self.cosine_steps = cosine_steps
-        self.batch_size = batch_size
-        self.vocab_size = vocab_size
-        self.use_rope = use_rope
+@dataclass
+class TrainConfig:
+        seed: int
+        d_model: int
+        d_ff: int
+        n_layers: int
+        n_heads: int
+        context_length: int
+        theta: float
+        lr: float | tuple[float, float]
+        weight_decay: float
+        beta: tuple[float, float]
+        grad_clip: float
+        warmup_steps : int
+        cosine_steps : int
+        batch_size: int
+        use_rope: bool
+        vocab_size: int = 32000
 
 
 
@@ -58,10 +41,10 @@ def train(train_path: str, val_path: str, checkpt_path: str, config: TrainConfig
         dtype=dtype
     )
     rng = np.random.default_rng(seed=config.seed)
-    wandb.init(project="cs336-hw1", config=config.__dict__)
+    wandb.init(project="cs336-hw1", config=asdict(config))
     data = np.memmap(train_path, dtype=np.uint16, mode='r')
     val_data = np.fromfile(val_path, dtype=np.uint16)
-    val_in, val_out = data_loading(val_data, config.batch_size, config.context_length, device=device, rng=rng)
+    val_in, val_out = val_loading(val_data, config.context_length, device=device)
     
     n_batches = data.shape[0] // (config.batch_size * config.context_length)
     if isinstance(config.lr, float):

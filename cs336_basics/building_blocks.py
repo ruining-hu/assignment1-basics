@@ -313,12 +313,20 @@ def gradient_clipping(params: Iterable[nn.Parameter], clip_norm: float, device: 
                 param.grad.data = param.grad.data * scale_factor
 
 
-def data_loading(x: np.ndarray, batch_size: int, context_length: int, device: torch.device, rng: np.random.Generator = np.random.default_rng()):
+def data_loading(x: np.ndarray, batch_size: int, context_length: int, device: torch.device, rng: np.random.Generator = np.random.default_rng()) -> tuple[torch.Tensor, torch.Tensor]:
     assert len(x.shape) == 1
     n = x.size
     assert n >= context_length + 1
     start_indices_chosen = rng.integers(0, n - context_length, size=batch_size)
     result = x[start_indices_chosen[:, None] + np.arange(context_length+1)]
+    return (torch.from_numpy(result[:, :-1].astype(np.int64)).to(device), torch.from_numpy(result[:, 1:].astype(np.int64)).to(device))
+
+
+def val_loading(x: np.ndarray, context_length: int, device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
+    assert len(x.shape) == 1
+    n = x.size
+    start_indices = np.arange(start=0, stop=n-context_length, step=context_length) # type: ignore
+    result = x[start_indices[:, None] + np.arange(context_length+1)]
     return (torch.from_numpy(result[:, :-1].astype(np.int64)).to(device), torch.from_numpy(result[:, 1:].astype(np.int64)).to(device))
 
 
