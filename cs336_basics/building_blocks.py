@@ -1,6 +1,9 @@
 import typing
 from collections.abc import Callable, Iterable
 import os
+from typing import Self
+from dataclasses import dataclass, asdict
+import json
 
 import torch
 import torch.nn as nn
@@ -8,6 +11,27 @@ import numpy as np
 import math
 from einops import einsum, rearrange
 from cs336_basics.tokenizer import Tokenizer
+
+@dataclass
+class TrainConfig:
+        seed: int
+        d_model: int
+        d_ff: int
+        n_layers: int
+        n_heads: int
+        context_length: int
+        theta: float
+        lr: float | list[float]
+        weight_decay: float
+        beta: list[float]
+        grad_clip: float
+        warmup_steps : int
+        cosine_steps : int
+        n_steps: int
+        batch_size: int
+        use_rope: bool
+        vocab_size: int = 32000
+
 
 class Linear(nn.Module):
     def __init__(self, in_features: int, out_features: int, device: torch.device | None = None, dtype: torch.dtype | None = None) -> None:
@@ -332,19 +356,22 @@ def val_loading(x: np.ndarray, context_length: int, device: torch.device) -> tup
     return (torch.from_numpy(result[:, :-1].astype(np.int64)).to(device), torch.from_numpy(result[:, 1:].astype(np.int64)).to(device))
 
 
-def save_checkpoint(model: nn.Module, optimizer: torch.optim.Optimizer, iteration: int, out: str | os.PathLike | typing.BinaryIO | typing.IO[bytes]) -> None:
+def save_checkpoint(model: nn.Module, optimizer: torch.optim.Optimizer, iteration: int, config: TrainConfig, out: str) -> None:
     state = {
         "model_state": model.state_dict(),
         "optimizer_state": optimizer.state_dict(),
         "iteration": iteration
     }
-    torch.save(state, out)
+    torch.save(state, out + ".pth")
+    json.dump(asdict(config), open(out + ".json", "w"), indent=2)
 
 
-def load_checkpoint(src: str | os.PathLike | typing.BinaryIO | typing.IO[bytes], model: torch.nn.Module, optimizer: torch.optim.Optimizer) -> int:
+
+def load_checkpoint(src: str, model: TransformerLM, optimizer: torch.optim.Optimizer | None = None, device: torch.device | None = None) -> int:
     state = torch.load(src)
     model.load_state_dict(state["model_state"])
-    optimizer.load_state_dict(state["optimizer_state"])
+    if optimizer is not None:
+        optimizer.load_state_dict(state["optimizer_state"])
     return state["iteration"]
 
 
@@ -354,6 +381,25 @@ class Decoder:
         self.tokenizer = tokenizer
         assert split_token in tokenizer.special_tokens
         self.split_token_id = tokenizer.encode(split_token)[0]
+    
+
+    @classmethod
+    def fromfile(cls, checkpt_filepath: str, config_filepath: str, vocab_filepath: str, merges_filepath: str, special_tokens: list[str] = [], device: torch.device | None = None, split_token: str = "<|endoftext|>") -> Self:
+        config = TrainConfig(*json.load(open(config_filepath, "r")))
+        transformer_model = TransformerLM(
+            d_model=config.d_model,
+            num_heads=config.n_heads,
+            vocab_size=config.vocab_size,
+            context_length=config.context_length,
+            num_layers=config.n_layers,
+            d_ff=config.d_ff,
+            use_rope=config.use_rope,
+            theta=config.theta,
+            device=device,
+        )
+        tokenizer = Tokenizer.from_files(vocab_filepath, merges_filepath, special_tokens)
+        load_checkpoint(src=checkpt_filepath, model=transformer_model)
+        return cls(transformer_model, tokenizer, split_token)
     
 
     def complete(self, text: str, temp: float = 1.0, top_p: float = 1.0, max_length: int | float = float("inf")) -> str:
@@ -379,7 +425,4 @@ def _sample_from_logits(logits: torch.Tensor, top_p: float, temp: float) -> int:
     probs_sorted[mask] = 0.0
 
     return token_ids[torch.multinomial(probs_sorted, num_samples=1)].item()
-
-
-
 

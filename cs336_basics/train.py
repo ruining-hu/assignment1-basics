@@ -5,26 +5,6 @@ import wandb
 from dataclasses import dataclass, asdict
 import logging
 
-@dataclass
-class TrainConfig:
-        seed: int
-        d_model: int
-        d_ff: int
-        n_layers: int
-        n_heads: int
-        context_length: int
-        theta: float
-        lr: float | tuple[float, float]
-        weight_decay: float
-        beta: tuple[float, float]
-        grad_clip: float
-        warmup_steps : int
-        cosine_steps : int
-        n_steps: int
-        batch_size: int
-        use_rope: bool
-        vocab_size: int = 32000
-
 
 def evaluate(transformer: TransformerLM, val_in: torch.Tensor, val_out: torch.Tensor, batch_size) -> float:
     total_loss = 0
@@ -94,7 +74,7 @@ def train(train_path: str, val_path: str, checkpt_path: str, config: TrainConfig
             log.info(f"step: {i}, val_loss: {loss:.4f}")
     
     wandb.finish()
-    save_checkpoint(transformer, optimizer, iteration=config.n_steps, out=checkpt_path)
+    save_checkpoint(transformer, optimizer, iteration=config.n_steps, config=config, out=checkpt_path)
 
 
 if __name__ == "__main__":
@@ -109,8 +89,8 @@ if __name__ == "__main__":
         n_layers=4,
         n_heads=16,
         batch_size=64,
-        beta=(0.9, 0.95),
-        lr=(1e-3, 4e-4),
+        beta=[0.9, 0.95],
+        lr=[1e-3, 4e-4],
         weight_decay=0.1,
         grad_clip=1.0,
         n_steps=20000,
