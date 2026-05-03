@@ -80,12 +80,13 @@ def train(train_path: str, val_path: str, checkpt_path: str, config: TrainConfig
         train_batch, target_batch = data_loading(x=data, batch_size=config.batch_size, context_length=config.context_length, device=device, rng=rng)
         loss = cross_entropy(transformer(train_batch), target_batch)
         loss.backward()
-        gradient_clipping(params=transformer.parameters(), clip_norm=config.grad_clip, device=device)
+        grad_norm = gradient_clipping(params=transformer.parameters(), clip_norm=config.grad_clip, device=device)
         if use_scheduler:
             optimizer.step(lr=cosine_lr_schedule(t=i, lr_max=config.lr[0], lr_min=config.lr[1], t_warm_up=config.warmup_steps, t_cosine=config.cosine_steps))
         else:
             optimizer.step()
         wandb.log({"train_loss": loss}, step=i)
+        wandb.log({"grad_norm": grad_norm}, step=i)
         log.info(f"step: {i}, train_loss: {loss:.4f}")
         if i % 10 == 0:
             val_loss = evaluate(transformer=transformer, val_in=val_in, val_out=val_out, batch_size=config.batch_size)
