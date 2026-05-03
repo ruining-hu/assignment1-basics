@@ -26,6 +26,17 @@ class TrainConfig:
         vocab_size: int = 32000
 
 
+def evaluate(transformer: TransformerLM, val_in: torch.Tensor, val_out: torch.Tensor, batch_size) -> float:
+    total_loss = 0
+    n = val_in.shape[0]
+    with torch.no_grad():
+        for start in range(0, n, batch_size):
+            vx = val_in[start:start+batch_size]
+            vy = val_out[start:start+batch_size]
+            total_loss += cross_entropy(transformer(vx), vy).item() * vx.shape[0]
+    return total_loss / n
+
+
 
 def train(train_path: str, val_path: str, checkpt_path: str, config: TrainConfig, device: torch.device | None = None, dtype : torch.dtype | None = None):
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
@@ -77,10 +88,9 @@ def train(train_path: str, val_path: str, checkpt_path: str, config: TrainConfig
         wandb.log({"train_loss": loss}, step=i)
         log.info(f"step: {i}, train_loss: {loss:.4f}")
         if i % 10 == 0:
-            with torch.no_grad():
-                val_loss = cross_entropy(transformer(val_in), val_out)
-                wandb.log({"val_loss": val_loss}, step=i)
-                log.info(f"step: {i}, val_loss: {loss:.4f}")
+            val_loss = evaluate(transformer=transformer, val_in=val_in, val_out=val_out, batch_size=config.batch_size)
+            wandb.log({"val_loss": val_loss}, step=i)
+            log.info(f"step: {i}, val_loss: {loss:.4f}")
     
     wandb.finish()
     save_checkpoint(transformer, optimizer, iteration=config.n_steps, out=checkpt_path)
