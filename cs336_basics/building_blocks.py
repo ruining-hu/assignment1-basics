@@ -299,7 +299,7 @@ def cosine_lr_schedule(t: int, lr_max: float, lr_min: float, t_warm_up: int, t_c
         return lr_min + (1 + math.cos((t - t_warm_up)*math.pi / (t_cosine - t_warm_up))) * (lr_max - lr_min)/2
 
 
-def gradient_clipping(params: Iterable[nn.Parameter], clip_norm: float, device: torch.device | None = None) -> None:
+def gradient_clipping(params: Iterable[nn.Parameter], clip_norm: float, device: torch.device | None = None) -> float:
     grad_norm = torch.zeros(1, device=device)
     for param in params:
         if param.grad is not None:
@@ -311,6 +311,8 @@ def gradient_clipping(params: Iterable[nn.Parameter], clip_norm: float, device: 
         for param in params:
             if param.grad is not None:
                 param.grad.data = param.grad.data * scale_factor
+    
+    return grad_norm.item()
 
 
 def data_loading(x: np.ndarray, batch_size: int, context_length: int, device: torch.device, rng: np.random.Generator = np.random.default_rng()) -> tuple[torch.Tensor, torch.Tensor]:
