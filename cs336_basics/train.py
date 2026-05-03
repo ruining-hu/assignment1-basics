@@ -87,7 +87,7 @@ def train(train_path: str, val_path: str, checkpt_path: str, config: TrainConfig
             optimizer.step()
         wandb.log({"train_loss": loss}, step=i)
         log.info(f"step: {i}, train_loss: {loss:.4f}")
-        if i % 10 == 0:
+        if i % 500 == 0:
             val_loss = evaluate(transformer=transformer, val_in=val_in, val_out=val_out, batch_size=config.batch_size)
             wandb.log({"val_loss": val_loss}, step=i)
             log.info(f"step: {i}, val_loss: {loss:.4f}")
@@ -112,9 +112,9 @@ if __name__ == "__main__":
         lr=(1e-3, 4e-4),
         weight_decay=0.1,
         grad_clip=1.0,
-        n_steps=1000,
-        warmup_steps=200,
-        cosine_steps=800,
+        n_steps=20000,
+        warmup_steps=2000,
+        cosine_steps=18000,
     )
     device = torch.device("cuda")
     train("data/TinyStoriesV2-GPT4-train.npy", "data/TinyStoriesV2-GPT4-valid.npy", "checkpoints/overfit.pth", config=config, device=device)

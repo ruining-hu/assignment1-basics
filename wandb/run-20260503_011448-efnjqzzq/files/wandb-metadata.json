@@ -1,0 +1,40 @@
+{
+  "os": "Linux-6.17.0-1008-nvidia-x86_64-with-glibc2.39",
+  "python": "CPython 3.12.3",
+  "startedAt": "2026-05-03T01:14:48.105350Z",
+  "program": "/workspace/CS336/assignment1-basics/cs336_basics/train.py",
+  "codePath": "cs336_basics/train.py",
+  "codePathLocal": "cs336_basics/train.py",
+  "git": {
+    "remote": "https://github.com/ruining-hu/assignment1-basics.git",
+    "commit": "63734c9dc51d28b9d23e0e35a05f917edd0026f0"
+  },
+  "email": "rh878@cam.ac.uk",
+  "root": "/workspace/CS336/assignment1-basics",
+  "host": "9e4f4cbfede6",
+  "executable": "/workspace/CS336/assignment1-basics/.venv/bin/python3",
+  "cpu_count": 64,
+  "cpu_count_logical": 128,
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "32212254720",
+      "used": "550608896"
+    }
+  },
+  "memory": {
+    "total": "2163988234240"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA H100 80GB HBM3",
+      "memoryTotal": "85520809984",
+      "cudaCores": 16896,
+      "architecture": "Hopper",
+      "uuid": "GPU-d6620f1a-7d52-858b-870d-74bf3ae10d9b"
+    }
+  ],
+  "cudaVersion": "13.0",
+  "writerId": "hgj75smfoowjfjy2jy55m6exzaun64bw"
+}
