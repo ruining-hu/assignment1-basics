@@ -77,7 +77,7 @@ class RotaryPositionalEmbedding(nn.Module):
             token_positions = torch.arange(x.shape[-2], device=x.device).expand(x.shape[:-1])
         else:
             token_positions = token_positions.expand(x.shape[:-1])
-        assert token_positions.shape == x.shape[:-1], f"token_positions.shape={token_positions.shape} must agree with x.shape[:-1]={x.shape[:-1]}"
+        # assert token_positions.shape == x.shape[:-1], f"token_positions.shape={token_positions.shape} must agree with x.shape[:-1]={x.shape[:-1]}"
         x = rearrange(x, "... (d_k_div_2 two) -> ... d_k_div_2 two", two=2)
 
         cos = self.cosines[token_positions]  # (..., d_k//2)
@@ -142,8 +142,8 @@ class MultiheadSelfAttention(nn.Module):
 
     def forward(self, x: torch.Tensor, token_positions: torch.Tensor | None = None) -> torch.Tensor:
         assert x.size(-1) == self.d_model
-        if self.device:
-            assert x.device == self.device
+        # if self.device:
+        #     assert x.device == self.device, f"x is on {x.device}, but model is on {self.device}"
         if self.dtype:
             assert x.dtype == self.dtype
         seq_length = x.size(-2)

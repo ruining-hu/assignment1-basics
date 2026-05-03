@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import wandb
 from dataclasses import dataclass, asdict
+import logging
 
 @dataclass
 class TrainConfig:
@@ -19,6 +20,7 @@ class TrainConfig:
         grad_clip: float
         warmup_steps : int
         cosine_steps : int
+        n_steps: int
         batch_size: int
         use_rope: bool
         vocab_size: int = 32000
@@ -26,6 +28,8 @@ class TrainConfig:
 
 
 def train(train_path: str, val_path: str, checkpt_path: str, config: TrainConfig, device: torch.device | None = None, dtype : torch.dtype | None = None):
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+    log = logging.getLogger(__name__)
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     transformer = TransformerLM(
@@ -40,13 +44,15 @@ def train(train_path: str, val_path: str, checkpt_path: str, config: TrainConfig
         device=device,
         dtype=dtype
     )
+    log.info("model initialized")
     rng = np.random.default_rng(seed=config.seed)
     wandb.init(project="cs336-hw1", config=asdict(config))
-    data = np.memmap(train_path, dtype=np.uint16, mode='r')
-    val_data = np.fromfile(val_path, dtype=np.uint16)
+    data = np.load(train_path, mmap_mode='r')
+    val_data = np.load(val_path)
     val_in, val_out = val_loading(val_data, config.context_length, device=device)
+    log.info("data loaded")
     
-    n_batches = data.shape[0] // (config.batch_size * config.context_length)
+    # n_batches = data.shape[0] // (config.batch_size * config.context_length)
     if isinstance(config.lr, float):
         lr = config.lr
         use_scheduler = False
@@ -54,8 +60,11 @@ def train(train_path: str, val_path: str, checkpt_path: str, config: TrainConfig
         lr = config.lr[0]
         use_scheduler = True
     optimizer = AdamW(params=transformer.parameters(), lr=lr, betas=config.beta, weight_decay=config.weight_decay)
+    log.info("optimizer initialized")
 
-    for i in range(1, n_batches+1):
+    # train_batch, target_batch = data_loading(x=data, batch_size=config.batch_size, context_length=config.context_length, device=device, rng=rng)
+
+    for i in range(1, config.n_steps+1):
         optimizer.zero_grad(set_to_none=True)
         train_batch, target_batch = data_loading(x=data, batch_size=config.batch_size, context_length=config.context_length, device=device, rng=rng)
         loss = cross_entropy(transformer(train_batch), target_batch)
@@ -66,13 +75,39 @@ def train(train_path: str, val_path: str, checkpt_path: str, config: TrainConfig
         else:
             optimizer.step()
         wandb.log({"train_loss": loss}, step=i)
+        log.info(f"step: {i}, train_loss: {loss:.4f}")
         if i % 10 == 0:
             with torch.no_grad():
                 val_loss = cross_entropy(transformer(val_in), val_out)
                 wandb.log({"val_loss": val_loss}, step=i)
+                log.info(f"step: {i}, val_loss: {loss:.4f}")
     
     wandb.finish()
-    save_checkpoint(transformer, optimizer, iteration=n_batches, out=checkpt_path)
+    save_checkpoint(transformer, optimizer, iteration=config.n_steps, out=checkpt_path)
+
+
+if __name__ == "__main__":
+    config = TrainConfig(
+        seed=42,
+        d_model=512,
+        context_length=256,
+        d_ff=1344,
+        vocab_size=10000,
+        theta=10000.0,
+        use_rope=True,
+        n_layers=4,
+        n_heads=16,
+        batch_size=64,
+        beta=(0.9, 0.95),
+        lr=(1e-3, 4e-4),
+        weight_decay=0.1,
+        grad_clip=1.0,
+        n_steps=1000,
+        warmup_steps=200,
+        cosine_steps=800,
+    )
+    device = torch.device("cuda")
+    train("data/TinyStoriesV2-GPT4-train.npy", "data/TinyStoriesV2-GPT4-valid.npy", "checkpoints/overfit.pth", config=config, device=device)
     
 
     

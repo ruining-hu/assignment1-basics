@@ -1,0 +1,87 @@
+_wandb:
+    value:
+        cli_version: 0.25.1
+        e:
+            lc3nxvcc7vuhiw30l81nvsrwpdj309pa:
+                codePath: cs336_basics/train.py
+                codePathLocal: cs336_basics/train.py
+                cpu_count: 64
+                cpu_count_logical: 128
+                cudaVersion: "13.0"
+                disk:
+                    /:
+                        total: "32212254720"
+                        used: "550817792"
+                email: rh878@cam.ac.uk
+                executable: /workspace/CS336/assignment1-basics/.venv/bin/python3
+                git:
+                    commit: b78d9fc4cba39822e13622f4d0ee619c3f30e867
+                    remote: https://github.com/ruining-hu/assignment1-basics.git
+                gpu: NVIDIA H100 80GB HBM3
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Hopper
+                      cudaCores: 16896
+                      memoryTotal: "85520809984"
+                      name: NVIDIA H100 80GB HBM3
+                      uuid: GPU-d6620f1a-7d52-858b-870d-74bf3ae10d9b
+                host: 70de635909ed
+                memory:
+                    total: "2163988234240"
+                os: Linux-6.17.0-1008-nvidia-x86_64-with-glibc2.39
+                program: /workspace/CS336/assignment1-basics/cs336_basics/train.py
+                python: CPython 3.12.3
+                root: /workspace/CS336/assignment1-basics
+                startedAt: "2026-05-03T00:31:32.243637Z"
+                writerId: lc3nxvcc7vuhiw30l81nvsrwpdj309pa
+        m: []
+        python_version: 3.12.3
+        t:
+            "1":
+                - 1
+            "2":
+                - 1
+            "3":
+                - 16
+            "4": 3.12.3
+            "5": 0.25.1
+            "12": 0.25.1
+            "13": linux-x86_64
+batch_size:
+    value: 64
+beta:
+    value:
+        - 0.9
+        - 0.95
+context_length:
+    value: 256
+cosine_steps:
+    value: 800
+d_ff:
+    value: 1344
+d_model:
+    value: 512
+grad_clip:
+    value: 1
+lr:
+    value:
+        - 0.001
+        - 0.0004
+n_heads:
+    value: 16
+n_layers:
+    value: 4
+n_steps:
+    value: 1000
+seed:
+    value: 42
+theta:
+    value: 10000
+use_rope:
+    value: true
+vocab_size:
+    value: 10000
+warmup_steps:
+    value: 200
+weight_decay:
+    value: 0.1

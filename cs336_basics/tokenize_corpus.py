@@ -7,8 +7,8 @@ def tokenize_corpus(vocab_filepath: str, merges_filepath: str, special_tokens: l
     corpuses = [
         "data/TinyStoriesV2-GPT4-train",
         "data/TinyStoriesV2-GPT4-valid",
-        "data/owt_train",
-        "data/owt_valid"
+        # "data/owt_train",
+        # "data/owt_valid"
     ]
     for path in corpuses:
         f = open(path + ".txt", "r")
@@ -21,3 +21,4 @@ def tokenize_corpus(vocab_filepath: str, merges_filepath: str, special_tokens: l
 
 if __name__ == "__main__":
     tokenize_corpus("cs336_basics/trained_vocab_tinystories.pkl", "cs336_basics/trained_merges_tinystories.pkl", ["<|endoftext|>"])
+    # tokenize_corpus("cs336_basics/owt_vocab.pkl", "cs336_basics/owt_merges.pkl", ["<|endoftext|>"])
