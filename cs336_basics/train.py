@@ -66,7 +66,7 @@ def train(train_path: str, val_path: str, checkpt_path: str, config: TrainConfig
         else:
             optimizer.step()
         log.info(f"step: {i}, train_loss: {loss:.4f}")
-        if i % 10 == 0:
+        if i % 500 == 0:
             val_loss = evaluate(transformer=transformer, val_in=val_in, val_out=val_out, batch_size=config.batch_size)
             wandb.log({"train_loss": loss, "val_loss": val_loss, "grad_norm": grad_norm}, step=i)
             log.info(f"step: {i}, val_loss: {loss:.4f}")
