@@ -49,14 +49,11 @@ def tokenize_corpus(vocab_filepath: str, merges_filepath: str, special_tokens: l
     import pickle
     import os
     urls = [
-        "https://huggingface.co/datasets/roneneldan/TinyStories/resolve/main/TinyStoriesV2-GPT4-train.txt",
-        "https://huggingface.co/datasets/roneneldan/TinyStories/resolve/main/TinyStoriesV2-GPT4-valid.txt",
         "https://huggingface.co/datasets/stanford-cs336/owt-sample/resolve/main/owt_train.txt.gz",
         "https://huggingface.co/datasets/stanford-cs336/owt-sample/resolve/main/owt_valid.txt.gz"
     ]
     filenames = []
     for url in urls:
-        url = "https://example.com/path/to/file.txt"
         filename = os.path.basename(urlparse(url).path)
         filenames.append(filename)
 

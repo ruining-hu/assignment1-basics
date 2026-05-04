@@ -36,6 +36,8 @@ def train(train_path: str, val_path: str, checkpt_path: str, config: TrainConfig
         dtype=dtype
     )
     log.info("model initialized")
+    transformer = torch.compile(transformer)
+    log.info("model compiled")
     rng = np.random.default_rng(seed=config.seed)
     wandb.init(project="cs336-hw1", config=asdict(config))
     data = np.load(train_path, mmap_mode='r')
@@ -65,13 +67,13 @@ def train(train_path: str, val_path: str, checkpt_path: str, config: TrainConfig
             optimizer.step(lr=cosine_lr_schedule(t=i, lr_max=config.lr[0], lr_min=config.lr[1], t_warm_up=config.warmup_steps, t_cosine=config.cosine_steps))
         else:
             optimizer.step()
-        wandb.log({"train_loss": loss}, step=i)
-        wandb.log({"grad_norm": grad_norm}, step=i)
         log.info(f"step: {i}, train_loss: {loss:.4f}")
         if i % 500 == 0:
             val_loss = evaluate(transformer=transformer, val_in=val_in, val_out=val_out, batch_size=config.batch_size)
-            wandb.log({"val_loss": val_loss}, step=i)
+            wandb.log({"train_loss": loss, "val_loss": val_loss, "grad_norm": grad_norm}, step=i)
             log.info(f"step: {i}, val_loss: {loss:.4f}")
+        else:
+            wandb.log({"train_loss": loss, "grad_norm": grad_norm}, step=i)
     
     wandb.finish()
     save_checkpoint(transformer, optimizer, iteration=config.n_steps, config=config, out=checkpt_path)
@@ -95,6 +97,7 @@ if __name__ == "__main__":
         grad_clip=1.0,
         n_steps=20000,
         warmup_steps=2000,
+        cosine_steps=20000,
         cosine_steps=20000,
     )
     device = torch.device("cuda")
