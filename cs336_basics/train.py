@@ -38,6 +38,8 @@ def train(train_path: str, val_path: str, checkpt_path: str, config: TrainConfig
     log.info("model initialized")
     transformer = torch.compile(transformer)
     log.info("model compiled")
+    transformer = torch.compile(transformer)
+    log.info("model compiled")
     rng = np.random.default_rng(seed=config.seed)
     wandb.init(project="cs336-hw1", config=asdict(config))
     data = np.load(train_path, mmap_mode='r')
@@ -71,7 +73,10 @@ def train(train_path: str, val_path: str, checkpt_path: str, config: TrainConfig
         if i % 500 == 0:
             val_loss = evaluate(transformer=transformer, val_in=val_in, val_out=val_out, batch_size=config.batch_size)
             wandb.log({"train_loss": loss, "val_loss": val_loss, "grad_norm": grad_norm}, step=i)
+            wandb.log({"train_loss": loss, "val_loss": val_loss, "grad_norm": grad_norm}, step=i)
             log.info(f"step: {i}, val_loss: {loss:.4f}")
+        else:
+            wandb.log({"train_loss": loss, "grad_norm": grad_norm}, step=i)
         else:
             wandb.log({"train_loss": loss, "grad_norm": grad_norm}, step=i)
     
