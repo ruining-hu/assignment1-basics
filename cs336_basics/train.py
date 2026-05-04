@@ -90,15 +90,15 @@ if __name__ == "__main__":
         n_heads=16,
         batch_size=64,
         beta=[0.9, 0.95],
-        lr=[1e-3, 4e-4],
+        lr=[1e-3, 5e-5],
         weight_decay=0.1,
         grad_clip=1.0,
         n_steps=20000,
         warmup_steps=2000,
-        cosine_steps=18000,
+        cosine_steps=20000,
     )
     device = torch.device("cuda")
-    train("data/TinyStoriesV2-GPT4-train.npy", "data/TinyStoriesV2-GPT4-valid.npy", "checkpoints/overfit.pth", config=config, device=device)
+    train("data/TinyStoriesV2-GPT4-train.npy", "data/TinyStoriesV2-GPT4-valid.npy", "checkpoints/schedule2", config=config, device=device)
     
 
     
