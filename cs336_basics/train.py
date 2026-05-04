@@ -36,6 +36,8 @@ def train(train_path: str, val_path: str, checkpt_path: str, config: TrainConfig
         dtype=dtype
     )
     log.info("model initialized")
+    transformer = torch.compile(transformer)
+    log.info("model compiled")
     rng = np.random.default_rng(seed=config.seed)
     wandb.init(project="cs336-hw1", config=asdict(config))
     data = np.load(train_path, mmap_mode='r')
@@ -95,7 +97,7 @@ if __name__ == "__main__":
         grad_clip=1.0,
         n_steps=20000,
         warmup_steps=2000,
-        cosine_steps=18000,
+        cosine_steps=20000,
     )
     device = torch.device("cuda")
-    train("data/TinyStoriesV2-GPT4-train.npy", "data/TinyStoriesV2-GPT4-valid.npy", "checkpoints/high_lr.pth", config=config, device=device)
+    train("data/TinyStoriesV2-GPT4-train.npy", "data/TinyStoriesV2-GPT4-valid.npy", "checkpoints/schedule4", config=config, device=device)
