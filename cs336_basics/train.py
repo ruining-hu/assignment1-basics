@@ -36,6 +36,7 @@ def train(train_path: str, val_path: str, checkpt_path: str, config: TrainConfig
         dtype=dtype
     )
     log.info("model initialized")
+    torch.set_float32_matmul_precision('high')
     transformer = torch.compile(transformer)
     log.info("model compiled")
     rng = np.random.default_rng(seed=config.seed)
@@ -92,7 +93,7 @@ if __name__ == "__main__":
         n_heads=16,
         batch_size=64,
         beta=[0.9, 0.95],
-        lr=1e-3,
+        lr=[5e-3, 5e-5],
         weight_decay=0.1,
         grad_clip=1.0,
         n_steps=20000,
@@ -101,3 +102,7 @@ if __name__ == "__main__":
     )
     device = torch.device("cuda")
     train("data/TinyStoriesV2-GPT4-train.npy", "data/TinyStoriesV2-GPT4-valid.npy", "checkpoints/schedule4", config=config, device=device)
+    
+
+    
+
