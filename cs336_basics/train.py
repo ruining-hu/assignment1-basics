@@ -97,7 +97,7 @@ if __name__ == "__main__":
         weight_decay=0.1,
         grad_clip=1.0,
         n_steps=20000,
-        warmup_steps=2000,
+        warmup_steps=1000,
         cosine_steps=20000,
     )
     device = torch.device("cuda")

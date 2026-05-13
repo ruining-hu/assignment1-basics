@@ -38,4 +38,4 @@ def tokenize_corpus(vocab_filepath: str, merges_filepath: str, special_tokens: l
 
 if __name__ == "__main__":
     # tokenize_corpus("cs336_basics/trained_vocab_tinystories.pkl", "cs336_basics/trained_merges_tinystories.pkl", ["<|endoftext|>"])
-    tokenize_corpus("cs336_basics/owt_vocab.pkl", "cs336_basics/owt_merges.pkl", ["<|endoftext|>"])
+    tokenize_corpus("cs336_basics/owt_vocab.pkl", "cs336_basics/owt_merges.pkl", ["<|endoftext|>"], num_processes=16)
