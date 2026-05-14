@@ -1,0 +1,40 @@
+{
+  "os": "Linux-6.17.0-1008-nvidia-x86_64-with-glibc2.39",
+  "python": "CPython 3.12.3",
+  "startedAt": "2026-05-13T23:42:27.559536Z",
+  "program": "/workspace/CS336/assignment1-basics/cs336_basics/lr_sweep.py",
+  "codePath": "cs336_basics/lr_sweep.py",
+  "codePathLocal": "cs336_basics/lr_sweep.py",
+  "git": {
+    "remote": "https://github.com/ruining-hu/assignment1-basics.git",
+    "commit": "4d6ea8a6fb50fec47e0135539069513a9da7d015"
+  },
+  "email": "rh878@cam.ac.uk",
+  "root": "/workspace/CS336/assignment1-basics",
+  "host": "1f92f28b12cc",
+  "executable": "/workspace/CS336/assignment1-basics/.venv/bin/python3",
+  "cpu_count": 64,
+  "cpu_count_logical": 128,
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "32212254720",
+      "used": "464764928"
+    }
+  },
+  "memory": {
+    "total": "2163988275200"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA H100 80GB HBM3",
+      "memoryTotal": "85520809984",
+      "cudaCores": 16896,
+      "architecture": "Hopper",
+      "uuid": "GPU-14ae2297-c784-57ee-5af1-6d916d46a00b"
+    }
+  ],
+  "cudaVersion": "13.0",
+  "writerId": "qxhgklz2zr3hs0xpuyb0ompbts2jbn3g"
+}

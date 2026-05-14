@@ -44,17 +44,12 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     max_lrs = [
-        1e-4,
-        3e-4,
-        1e-3,
         3e-3,
         5e-3,
-        1e-2,
-        2e-2,
-        3e-2,
+        1e-2
     ]
 
-    min_lr_fracs = [1e-2]
+    min_lr_fracs = [0.0, 1e-3, 1e-1]
 
     sweep = list(itertools.product(max_lrs, min_lr_fracs))
 
